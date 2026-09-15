@@ -20,7 +20,7 @@
           <span class="pill">KASANGE SECONDARY SCHOOL</span>
           <h1>Student Results<br><span>Management System</span></h1>
           <p>Mfumo wa walimu kuingiza, kuhakiki na kuwasilisha matokeo kwa uongozi wa shule kwa usalama na urahisi.</p>
-          <div class="hero-buttons"><button class="primary" onclick="showPage('teacherLogin')">Teacher Portal</button><button class="secondary" onclick="showPage('adminLogin')">Admin Portal</button></div>
+          <div class="hero-buttons"><button class="primary" onclick="showPage('teacherLogin')">Teacher Portal</button><button class="secondary admin-portal-button" onclick="showPage('adminLogin')">Admin Portal</button></div>
         </div>
         <div class="hero-image">
           <div class="hero-photo-layer">
@@ -64,8 +64,53 @@
     <section id="history" class="page hidden"><div class="section-head"><div><span class="pill">HISTORY</span><h2>Historia ya Matokeo</h2></div><button class="secondary" onclick="showPage('classes')">← Madarasa</button></div><div id="historyList" class="history-list"></div></section>
 
     <section id="admin" class="page hidden"><div class="section-head"><div><span class="pill">ADMIN DASHBOARD</span><h2>Admin Dashboard</h2><p>Manage submissions, teachers and school results.</p></div><button class="secondary" onclick="showPage('adminProfile')">Admin Profile</button></div><div class="admin-grid"><div class="metric"><b id="pendingCount">0</b><small>Pending Submissions</small></div><div class="metric"><b>Form I–VI</b><small>Classes</small></div><div class="metric"><b>20K+</b><small>Capacity</small></div></div><h3>Submitted Results</h3><div id="adminList" class="history-list"></div><div id="adminDetail" class="card admin-detail hidden"><div id="adminDetailContent" class="review"></div></div></section>
+    <section id="adminProfile" class="page hidden">
+        <div class="card form-card">
+            <h2>Admin Profile</h2>
 
-    <section id="adminProfile" class="page hidden"><div class="card form-card"><h2>Admin Profile</h2><div class="photo-upload"><div id="adminPreview" class="avatar"><img src="image/profile.jpeg" alt="Admin profile"></div><input id="adminPhoto" type="file" accept="image/*" onchange="preview(this,'adminPreview')"></div><input id="adminProfileName" placeholder="Jina la Admin"><button class="primary full" onclick="saveAdminProfile()">Open Dashboard</button><button class="secondary full" onclick="showPage('landing')">Ghairi / Rudi</button></div></section>
+            <div class="photo-upload">
+                <div id="adminPreview" class="avatar">
+                    <img src="image/profile.jpeg" alt="Admin profile">
+                </div>
+
+                <input
+                    id="adminPhoto"
+                    type="file"
+                    accept="image/*"
+                    onchange="preview(this,'adminPreview')"
+                >
+            </div>
+
+            <input
+                id="adminName"
+                placeholder="Jina la Admin"
+            >
+
+            <input
+                id="adminRole"
+                placeholder="Role / Nafasi"
+            >
+
+            <textarea
+                id="adminBio"
+                placeholder="Maelezo mafupi"
+            ></textarea>
+
+            <button
+                class="primary full"
+                onclick="saveAdminProfile()"
+            >
+                Save Profile & Open Dashboard
+            </button>
+
+            <button
+                class="secondary full"
+                onclick="showPage('landing')"
+            >
+                Ghairi / Rudi
+            </button>
+        </div>
+    </section>
   </main>
   <footer class="app-footer">
     <div class="footer-content">
@@ -84,6 +129,7 @@
     </div>
   </footer>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="app.js"></script>
 </body>
 </html>

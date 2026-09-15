@@ -56,6 +56,9 @@ body.dark {
 button,input,textarea{font:inherit}
 button{cursor:pointer;border:0}
 
+.admin-portal-button{background:var(--primary);color:#fff;border:1px solid var(--line-strong);transition:background .2s ease,transform .2s ease,box-shadow .2s ease,filter .2s ease}
+.admin-portal-button:hover{background:var(--primary-2);color:#fff;transform:translateY(-2px);box-shadow:0 10px 22px var(--shadow);filter:brightness(1.05)}
+
 .hidden{display:none!important}
 .app{min-height:100vh}
 
