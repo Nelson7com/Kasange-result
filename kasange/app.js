@@ -1,23 +1,266 @@
-let currentClass='', currentRows=[], currentTeacher='', history=JSON.parse(localStorage.getItem('kss_history')||'[]'), submissions=JSON.parse(localStorage.getItem('kss_submissions')||'[]');
-const pages=['landing','teacherLogin','adminLogin','classes','teacherProfile','classInfo','results','review','postSubmit','history','admin','adminProfile'];
-function showPage(id){pages.forEach(p=>document.getElementById(p).classList.toggle('hidden',p!==id));window.scrollTo(0,0);if(id==='history')renderHistory();if(id==='admin')renderAdmin();}
-document.getElementById('themeBtn').onclick=()=>document.body.classList.toggle('dark');
-document.getElementById('logoutBtn').onclick=()=>{document.getElementById('logoutBtn').classList.add('hidden');showPage('landing')};
-function teacherEnter(){currentTeacher=document.getElementById('teacherName').value.trim()||'Teacher Demo';document.getElementById('logoutBtn').classList.remove('hidden');showPage('teacherProfile');}
-function adminEnter(){if(!document.getElementById('adminPassword').value){alert('Weka password.');return}document.getElementById('logoutBtn').classList.remove('hidden');showPage('adminProfile')}
-function preview(input,id){if(input.files[0]){let r=new FileReader();r.onload=e=>document.getElementById(id).innerHTML='<img src="'+e.target.result+'">';r.readAsDataURL(input.files[0])}}
-function confirmTeacherProfile(){let n=document.getElementById('profileName').value.trim();if(n)currentTeacher=n;showPage('classes')}
-function saveAdminProfile(){let username=document.getElementById('adminName').value.trim();if(username){currentAdminName=username;}let first=document.getElementById('adminPasswordNew').value;let second=document.getElementById('adminPasswordConfirm').value;if(first||second){if(first!==second){alert('Password hailingani.');return}if(first.length<4){alert('Password iwe na urefu wa angalau 4.');return}}localStorage.setItem('kss_admin_profile',JSON.stringify({name:username||'Admin Demo',password:first||''}));showPage('admin')}
-function selectClass(c){currentClass=c;document.getElementById('chosenClass').textContent=c;showPage('classInfo')}
-function goToResults(){let s=document.getElementById('subject').value.trim(),t=document.getElementById('term').value.trim(),y=document.getElementById('year').value.trim(),stream=document.getElementById('stream').value.trim();if(!s||!t||!y){alert('Jaza Somo, Term na Mwaka.');return}document.getElementById('infoSummary').textContent=`${currentClass} • ${s} • ${t} • ${y} • Mkondo ${stream||'A'} • Mwalimu: ${currentTeacher}`;document.getElementById('resultClass').textContent=currentClass;document.getElementById('resultMeta').textContent=`${s} | ${t} | ${y} | Mkondo ${stream||'A'} | Mwalimu: ${currentTeacher}`;if(!currentRows.length)currentRows=[{name:'',adm:'',marks:''},{name:'',adm:'',marks:''},{name:'',adm:'',marks:''}];renderRows();showPage('results')}
-function grade(m){m=Number(m);if(m>=80)return'A';if(m>=70)return'B+';if(m>=60)return'B';if(m>=50)return'C';if(m>=40)return'D';return'F'}
-function renderRows(){document.getElementById('resultBody').innerHTML=currentRows.map((r,i)=>`<tr><td>${i+1}</td><td><input value="${r.name}" onchange="currentRows[${i}].name=this.value" placeholder="Jina"></td><td><input value="${r.adm}" onchange="currentRows[${i}].adm=this.value" placeholder="Admission No. (optional)"></td><td><input type="number" min="0" max="100" value="${r.marks}" onchange="currentRows[${i}].marks=this.value" placeholder="0-100"></td><td><b>${r.marks!==''?grade(r.marks):'-'}</b></td><td><button class="small-btn" onclick="deleteStudent(${i})">Futa</button></td></tr>`).join('')}
-function addStudent(){currentRows.push({name:'',adm:'',marks:''});renderRows()}
-function deleteStudent(i){if(currentRows.length>1){currentRows.splice(i,1);renderRows()}else{currentRows=[{name:'',adm:'',marks:''}];renderRows();}}
-function reviewSubmission(){if(!currentRows.length||currentRows.some(r=>!r.name||r.marks==='')){alert('Hakikisha kila mwanafunzi ana jina na marks. Admission No. ni ya hiari.');return}document.getElementById('reviewContent').innerHTML=`<div class="review-row"><b>Darasa</b><span>${currentClass}</span></div><div class="review-row"><b>Mkondo</b><span>${document.getElementById('stream').value.trim()||'A'}</span></div><div class="review-row"><b>Somo</b><span>${document.getElementById('subject').value.trim()}</span></div><div class="review-row"><b>Term / Mwaka</b><span>${document.getElementById('term').value.trim()} ${document.getElementById('year').value.trim()}</span></div><div class="review-row"><b>Mwalimu</b><span>${currentTeacher}</span></div><div class="review-row"><b>Idadi</b><span>${currentRows.length}</span></div><div class="review-row"><b>Wanafunzi</b><span>${currentRows.map(r=>`${r.name} (${r.adm || 'No Adm'}) ${r.marks} - ${grade(r.marks)}`).join(', ')}</span></div>`;showPage('review')}
-function submitResults(){let item={id:Date.now(),class:currentClass,teacher:currentTeacher,subject:document.getElementById('subject').value,term:document.getElementById('term').value,year:document.getElementById('year').value,stream:document.getElementById('stream').value.trim()||'A',count:currentRows.length,status:'Pending Admin',date:new Date().toLocaleString(),rows:currentRows.map(r=>({...r}))};submissions.unshift(item);history.unshift(item);localStorage.setItem('kss_submissions',JSON.stringify(submissions));localStorage.setItem('kss_history',JSON.stringify(history));alert('Matokeo yamesubmit kwa Admin.');currentRows=[];showPage('postSubmit')}
-function renderHistory(){document.getElementById('historyList').innerHTML=history.length?history.map(x=>`<div class="history-item"><div><b>${x.class} — ${x.subject}</b><div>${x.teacher} • Mkondo ${x.stream||'A'} • ${x.term} • ${x.year}</div><small>${x.count} students • ${x.date}</small></div><span class="status">${x.status}</span></div>`).join(''):'<div class="card">Hakuna history bado.</div>'}
-function renderAdmin(){document.getElementById('pendingCount').textContent=submissions.filter(x=>x.status==='Pending Admin').length;document.getElementById('adminList').innerHTML=submissions.length?submissions.map(x=>`<div class="history-item"><div><b>${x.class} — ${x.subject}</b><div>Teacher: ${x.teacher} • Mkondo ${x.stream||'A'} • ${x.term} ${x.year}</div><small>${x.count} students • ${x.date}</small></div><div><span class="status">${x.status}</span><button class="primary" style="margin-left:8px" onclick="approve(${x.id})">Approve</button><button class="secondary" style="margin-left:8px" onclick="viewSubmission(${x.id})">View</button></div></div>`).join(''):'<div class="card">Hakuna submissions bado.</div>'}
-function viewSubmission(id){let item=submissions.find(x=>x.id===id);if(!item){return}document.getElementById('adminDetailContent').innerHTML=`<div class="review-row"><b>Class</b><span>${item.class}</span></div><div class="review-row"><b>Teacher</b><span>${item.teacher}</span></div><div class="review-row"><b>Subject</b><span>${item.subject}</span></div><div class="review-row"><b>Term / Year</b><span>${item.term} ${item.year}</span></div><div class="review-row"><b>Stream</b><span>${item.stream||'A'}</span></div><div class="review-row"><b>Status</b><span>${item.status}</span></div><div class="review-row"><b>Students</b><span>${item.rows.map(r=>`${r.name} (${r.adm || 'No Adm'}) ${r.marks} ${grade(r.marks)}`).join(', ')}</span></div>`;document.getElementById('adminDetail').classList.remove('hidden');}
-function approve(id){submissions=submissions.map(x=>x.id===id?{...x,status:'Approved'}:x);history=history.map(x=>x.id===id?{...x,status:'Approved'}:x);localStorage.setItem('kss_submissions',JSON.stringify(submissions));localStorage.setItem('kss_history',JSON.stringify(history));renderAdmin();renderHistory();}
-showPage('landing');
+let currentClass = '', currentRows = [], currentTeacher = '', currentUser = null;
+let submissions = [], history = [];
+const pages = ['landing', 'teacherLogin', 'adminLogin', 'classes', 'teacherProfile', 'classInfo', 'results', 'review', 'postSubmit', 'history', 'admin', 'adminProfile'];
+
+async function api(path, options = {}) {
+  const response = await fetch(`/api${path}`, {
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    ...options
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || 'Server error');
+  return payload;
+}
+
+function notify(error) { alert(error instanceof Error ? error.message : error); }
+function showPage(id) {
+  pages.forEach(page => document.getElementById(page).classList.toggle('hidden', page !== id));
+  window.scrollTo(0, 0);
+  if (id === 'history') loadHistory();
+  if (id === 'admin') loadAdmin();
+}
+function setLoggedIn(user) {
+  currentUser = user;
+  currentTeacher = user.name;
+  document.getElementById('logoutBtn').classList.remove('hidden');
+}
+function requireRole(role) {
+  if (!currentUser || currentUser.role !== role) {
+    showPage(role === 'admin' ? 'adminLogin' : 'teacherLogin');
+    return false;
+  }
+  return true;
+}
+document.getElementById('themeBtn').onclick = () => document.body.classList.toggle('dark');
+document.getElementById('logoutBtn').onclick = async () => {
+  try { await api('/auth/logout', { method: 'POST' }); } catch (error) { notify(error); }
+  currentUser = null; currentRows = []; document.getElementById('logoutBtn').classList.add('hidden'); showPage('landing');
+};
+async function createTeacherAccount() {
+  const name = document.getElementById('teacherCreateName').value.trim();
+  const email = document.getElementById('teacherCreateEmail').value.trim();
+  const password = document.getElementById('teacherCreatePassword').value;
+  if (!name || !password) {
+    notify('Jaza jina na password kabla ya kuunda akaunti ya mwalimu.');
+    return;
+  }
+  try {
+    const photo = document.getElementById('teacherCreatePhoto').files[0];
+    let profilePhoto = '';
+    if (photo) {
+      const reader = new FileReader();
+      profilePhoto = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Image upload failed'));
+        reader.readAsDataURL(photo);
+      });
+    }
+    await api('/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password, profile_photo: profilePhoto }) });
+    alert('Akaunti ya mwalimu imeundwa. Sasa ingia kwa jina lako na password.');
+    document.getElementById('teacherCreatePassword').value = '';
+  } catch (error) { notify(error); }
+}
+async function teacherEnter() {
+  const name = document.getElementById('teacherLoginName').value.trim();
+  const password = document.getElementById('teacherLoginPassword').value;
+  if (!name || !password) {
+    notify('Jaza jina la mwalimu na password yako.');
+    return;
+  }
+  try {
+    const user = await api('/auth/login', { method: 'POST', body: JSON.stringify({ name, password, role: 'teacher' }) });
+    setLoggedIn(user);
+    document.getElementById('profileName').value = user.name || name;
+    document.getElementById('profilePhone').value = user.phone || '';
+    document.getElementById('profileEmail').value = user.email || '';
+    document.getElementById('profilePassword').value = '';
+    document.getElementById('profilePasswordConfirm').value = '';
+    showPage('teacherProfile');
+  } catch (error) { notify(error); }
+}
+async function adminEnter() {
+  try {
+    const name = document.getElementById('adminName').value.trim();
+    const password = document.getElementById('adminPassword').value;
+    if (!name || !password) {
+      notify('Jaza jina la admin na password.');
+      return;
+    }
+    const user = await api('/auth/login', { method: 'POST', body: JSON.stringify({ name, password, role: 'admin' }) });
+    setLoggedIn(user); document.getElementById('adminProfileName').value = user.name; showPage('adminProfile');
+  } catch (error) { notify(error); }
+}
+function preview(input, id) {
+  if (input.files[0]) { const reader = new FileReader(); reader.onload = event => document.getElementById(id).innerHTML = `<img src="${event.target.result}" alt="Profile">`; reader.readAsDataURL(input.files[0]); }
+}
+async function confirmTeacherProfile() {
+  if (!requireRole('teacher')) return;
+  const name = document.getElementById('profileName').value.trim();
+  const phone = document.getElementById('profilePhone').value.trim();
+  const email = document.getElementById('profileEmail').value.trim();
+  const password = document.getElementById('profilePassword').value;
+  const passwordConfirm = document.getElementById('profilePasswordConfirm').value;
+  const profilePhoto = document.getElementById('teacherPhoto').files[0];
+  if (!name || !phone || !email) {
+    notify('Jina, namba ya simu na email ni lazima.');
+    return;
+  }
+  if (password || passwordConfirm) {
+    if (password.length < 6) {
+      notify('Password lazima iwe na angalau herufi 6.');
+      return;
+    }
+    if (password !== passwordConfirm) {
+      notify('Password hailingani.');
+      return;
+    }
+  }
+  try {
+    let photoData = currentUser && currentUser.profile_photo ? currentUser.profile_photo : '';
+    if (profilePhoto) {
+      photoData = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Image upload failed'));
+        reader.readAsDataURL(profilePhoto);
+      });
+    }
+    await api('/auth/profile', { method: 'PUT', body: JSON.stringify({ name, phone, email, profile_photo: photoData, password: password || undefined }) });
+    currentTeacher = name;
+    currentUser = { ...currentUser, name, phone, email, profile_photo: photoData, role: 'teacher' };
+    showPage('classes');
+  } catch (error) { notify(error); }
+}
+function saveAdminProfile() { if (requireRole('admin')) { showPage('admin'); } }
+function selectClass(value) { if (requireRole('teacher')) { currentClass = value; document.getElementById('chosenClass').textContent = value; showPage('classInfo'); } }
+function goToResults() {
+  const subject = document.getElementById('subject').value.trim(), term = document.getElementById('term').value.trim(), year = document.getElementById('year').value.trim(), stream = document.getElementById('stream').value.trim() || 'A';
+  if (!subject || !term || !year) { notify('Jaza Somo, Term na Mwaka.'); return; }
+  document.getElementById('infoSummary').textContent = `${currentClass} • ${subject} • ${term} • ${year} • Mkondo ${stream} • Mwalimu: ${currentTeacher}`;
+  document.getElementById('resultClass').textContent = currentClass; document.getElementById('resultMeta').textContent = `${subject} | ${term} | ${year} | Mkondo ${stream} | Mwalimu: ${currentTeacher}`;
+  if (!currentRows.length) currentRows = [{ name: '', adm: '', marks: '' }, { name: '', adm: '', marks: '' }, { name: '', adm: '', marks: '' }];
+  renderRows(); showPage('results');
+}
+function grade(marks) { const mark = Number(marks); if (mark >= 80) return 'A'; if (mark >= 70) return 'B+'; if (mark >= 60) return 'B'; if (mark >= 50) return 'C'; if (mark >= 40) return 'D'; return 'F'; }
+function renderRows() {
+  document.getElementById('resultBody').innerHTML = currentRows.map((row, i) => `<tr><td>${i + 1}</td><td><input value="${row.name}" onchange="currentRows[${i}].name=this.value" placeholder="Jina"></td><td><input value="${row.adm}" onchange="currentRows[${i}].adm=this.value" placeholder="Admission No. (optional)"></td><td><input type="number" min="0" max="100" value="${row.marks}" onchange="currentRows[${i}].marks=this.value" placeholder="0-100"></td><td><b>${row.marks !== '' ? grade(row.marks) : '-'}</b></td><td><button class="small-btn" onclick="deleteStudent(${i})">Futa</button></td></tr>`).join('');
+}
+function addStudent() { currentRows.push({ name: '', adm: '', marks: '' }); renderRows(); }
+function deleteStudent(index) { currentRows.splice(index, 1); if (!currentRows.length) currentRows.push({ name: '', adm: '', marks: '' }); renderRows(); }
+function reviewSubmission() {
+  if (!currentRows.length || currentRows.some(row => !row.name.trim() || row.marks === '' || Number(row.marks) < 0 || Number(row.marks) > 100)) { notify('Hakikisha kila mwanafunzi ana jina na marks 0-100.'); return; }
+  document.getElementById('reviewContent').innerHTML = `<div class="review-row"><b>Darasa</b><span>${currentClass}</span></div><div class="review-row"><b>Somo</b><span>${document.getElementById('subject').value.trim()}</span></div><div class="review-row"><b>Term / Mwaka</b><span>${document.getElementById('term').value.trim()} ${document.getElementById('year').value.trim()}</span></div><div class="review-row"><b>Mwalimu</b><span>${currentTeacher}</span></div><div class="review-row"><b>Wanafunzi</b><span>${currentRows.map(row => `${row.name} (${row.adm || 'No Adm'}) ${row.marks} - ${grade(row.marks)}`).join(', ')}</span></div>`;
+  showPage('review');
+}
+async function submitResults() {
+  try {
+    await api('/submissions', { method: 'POST', body: JSON.stringify({ className: currentClass, subject: document.getElementById('subject').value.trim(), term: document.getElementById('term').value.trim(), year: document.getElementById('year').value.trim(), stream: document.getElementById('stream').value.trim() || 'A', rows: currentRows }) });
+    currentRows = []; notify('Matokeo yamesubmit kwa Admin.'); showPage('postSubmit');
+  } catch (error) { notify(error); }
+}
+function rowsTableMarkup(rows = []) {
+  return `
+    <div class="results-table-wrap">
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Jina</th>
+            <th>Adm</th>
+            <th>Marks</th>
+            <th>Grade</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.length ? rows.map((row, index) => `
+            <tr>
+              <td>${index + 1}</td>
+              <td>${row.name || '-'}</td>
+              <td>${row.adm || '—'}</td>
+              <td>${row.marks}</td>
+              <td>${grade(row.marks)}</td>
+            </tr>
+          `).join('') : '<tr><td colspan="5">No results</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+function submissionHtml(item, admin = false) {
+  const rowsMarkup = rowsTableMarkup(item.rows || []);
+  return `
+    <div class="history-item">
+      <div class="history-top-row">
+        <div>
+          <b>${item.className} — ${item.subject}</b>
+          <div class="meta-line">${admin ? `Teacher: ${item.teacherName} • ` : ''}Mkondo ${item.stream} • ${item.term} • ${item.year}</div>
+          <small>${item.count} students • ${new Date(item.createdAt).toLocaleString()}</small>
+        </div>
+        <div class="history-actions">
+          <span class="status">${item.status}</span>
+          ${admin ? `<button class="primary" onclick="approve(${item.id})">Approve</button><button class="secondary" onclick="viewSubmission(${item.id})">View</button><button class="danger" onclick="deleteSubmission(${item.id})">Delete</button>` : `<button class="primary" onclick="resubmitSubmission(${item.id})">Resubmit</button>`}
+        </div>
+      </div>
+      ${rowsMarkup}
+    </div>
+  `;
+}
+async function loadHistory() {
+  try {
+    history = await api('/submissions');
+    document.getElementById('historyList').innerHTML = history.length ? history.map(item => submissionHtml(item)).join('') : '<div class="card">Hakuna history bado.</div>';
+  } catch (error) { notify(error); }
+}
+async function loadAdmin() {
+  if (!requireRole('admin')) return;
+  try {
+    submissions = await api('/submissions');
+    const pending = submissions.filter(item => item.status === 'Pending Admin').length;
+    document.getElementById('pendingCount').textContent = pending;
+    document.getElementById('adminList').innerHTML = submissions.length ? submissions.map(item => submissionHtml(item, true)).join('') : '<div class="card">Hakuna submissions bado.</div>';
+  } catch (error) { notify(error); }
+}
+async function approve(id) {
+  try {
+    await api(`/submissions/${id}/approve`, { method: 'POST' });
+    await loadAdmin();
+  } catch (error) { notify(error); }
+}
+async function deleteSubmission(id) {
+  try {
+    if (!confirm('Unataka kufuta matokeo haya?')) return;
+    await api(`/submissions/${id}`, { method: 'DELETE' });
+    await loadAdmin();
+    await loadHistory();
+  } catch (error) { notify(error); }
+}
+function resubmitSubmission(id) {
+  const item = history.find(value => value.id === id);
+  if (!item) return;
+  currentClass = item.className;
+  currentRows = (item.rows || []).map(row => ({ name: row.name || '', adm: row.adm || '', marks: row.marks }));
+  document.getElementById('subject').value = item.subject;
+  document.getElementById('term').value = item.term;
+  document.getElementById('year').value = item.year;
+  document.getElementById('stream').value = item.stream || 'A';
+  document.getElementById('chosenClass').textContent = currentClass;
+  renderRows();
+  showPage('results');
+  alert('Matokeo yamewekwa tena kwa editing. Ukibofya submit tena, yatawasilishwa tena kwa admin.');
+}
+function viewSubmission(itemId) {
+  const item = submissions.find(value => value.id === itemId);
+  if (!item) return;
+  document.getElementById('adminDetailContent').innerHTML = `
+    <div class="review-row"><b>Class</b><span>${item.className}</span></div>
+    <div class="review-row"><b>Teacher</b><span>${item.teacherName}</span></div>
+    <div class="review-row"><b>Subject</b><span>${item.subject}</span></div>
+    <div class="review-row"><b>Term / Year</b><span>${item.term} ${item.year}</span></div>
+    <div class="review-row"><b>Status</b><span>${item.status}</span></div>
+    ${rowsTableMarkup(item.rows || [])}
+  `;
+  document.getElementById('adminDetail').classList.remove('hidden');
+}
+async function init() { try { const user = await api('/auth/me'); setLoggedIn(user); showPage(user.role === 'admin' ? 'admin' : 'teacherProfile'); } catch (_) { showPage('landing'); } }
+init();
