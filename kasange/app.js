@@ -204,8 +204,8 @@ async function createTeacherAccount() {
 ========================= */
 
 async function teacherEnter() {
-  const name = document
-    .getElementById('teacherLoginName')
+  const email = document
+    .getElementById('teacherLoginEmail')
     .value
     .trim();
 
@@ -213,8 +213,8 @@ async function teacherEnter() {
     .getElementById('teacherLoginPassword')
     .value;
 
-  if (!name || !password) {
-    notify('Jaza jina la mwalimu na password yako.');
+  if (!email || !password) {
+    notify('Jaza email na password yako.');
     return;
   }
 
@@ -222,7 +222,7 @@ async function teacherEnter() {
     const user = await api('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
-        name,
+        email,
         password,
         role: 'teacher'
       })
@@ -231,7 +231,7 @@ async function teacherEnter() {
     setLoggedIn(user);
 
     document.getElementById('profileName').value =
-      user.name || name;
+      user.name || '';
 
     document.getElementById('profilePhone').value =
       user.phone || '';
@@ -258,8 +258,8 @@ async function teacherEnter() {
 
 async function adminEnter() {
   try {
-    const name = document
-      .getElementById('adminName')
+    const email = document
+      .getElementById('adminEmail')
       .value
       .trim();
 
@@ -267,15 +267,15 @@ async function adminEnter() {
       .getElementById('adminPassword')
       .value;
 
-    if (!name || !password) {
-      notify('Jaza jina la admin na password.');
+    if (!email || !password) {
+      notify('Jaza email na password ya admin.');
       return;
     }
 
     const user = await api('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
-        name,
+        email,
         password,
         role: 'admin'
       })
@@ -284,7 +284,7 @@ async function adminEnter() {
     setLoggedIn(user);
 
     const adminProfileName =
-      document.getElementById('adminProfileName');
+      document.getElementById('adminName');
 
     if (adminProfileName) {
       adminProfileName.value = user.name || '';
@@ -438,9 +438,48 @@ async function confirmTeacherProfile() {
    ADMIN PROFILE
 ========================= */
 
-function saveAdminProfile() {
-  if (requireRole('admin')) {
+async function saveAdminProfile() {
+  if (!requireRole('admin')) {
+    return;
+  }
+
+  const name = document
+    .getElementById('adminName')
+    .value
+    .trim();
+
+  const photoInput = document.getElementById('adminPhoto');
+  const photo = photoInput?.files?.[0];
+
+  try {
+    let photoData = currentUser?.profile_photo || '';
+
+    if (photo) {
+      photoData = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () =>
+          reject(new Error('Image upload failed'));
+
+        reader.readAsDataURL(photo);
+      });
+    }
+
+    const updated = await api('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify({
+        name: name || currentUser.name,
+        profile_photo: photoData
+      })
+    });
+
+    currentUser = updated;
+
     showPage('admin');
+
+  } catch (error) {
+    notify(error);
   }
 }
 

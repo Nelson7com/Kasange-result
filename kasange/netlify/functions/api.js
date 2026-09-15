@@ -19,17 +19,29 @@ async function supabase(path, options = {}, accessToken = '') {
 async function currentUser(accessToken) {
   if (!accessToken) return null;
   const authUser = await supabase('/auth/v1/user', {}, accessToken);
-  const profiles = await supabase(`/rest/v1/profiles?id=eq.${encodeURIComponent(authUser.id)}&select=id,name,role`, {}, accessToken);
-  return profiles[0] ? { ...profiles[0], email: authUser.email } : null;
+  const profiles = await supabase(`/rest/v1/profiles?id=eq.${encodeURIComponent(authUser.id)}&select=id,name,role,phone,profile_photo`, {}, accessToken);
+  let profile = profiles[0];
+  if (!profile) {
+    const meta = authUser.user_metadata || {};
+    const created = await supabase('/rest/v1/profiles?select=id,name,role,phone,profile_photo', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ id: authUser.id, name: meta.name || authUser.email, role: 'teacher', profile_photo: meta.profile_photo || '' }) }, accessToken);
+    profile = created[0];
+  }
+  return profile ? { ...profile, email: authUser.email } : null;
 }
 
 exports.handler = async event => {
   if (!supabaseUrl || !anonKey) return response(500, { error: 'Supabase environment variables hazijawekwa Netlify.' });
   const path = event.path.replace(/^\/\.netlify\/functions\/api/, '') || '/';
   try {
+    if (path === '/auth/register' && event.httpMethod === 'POST') {
+      const body = JSON.parse(event.body || '{}');
+      if (!body.name || !body.email || !body.password) return response(400, { error: 'Jina, email na password ni lazima.' });
+      await supabase('/auth/v1/signup', { method: 'POST', body: JSON.stringify({ email: body.email, password: body.password, data: { name: body.name, profile_photo: body.profile_photo || '' } }) });
+      return response(201, { ok: true });
+    }
     if (path === '/auth/login' && event.httpMethod === 'POST') {
       const body = JSON.parse(event.body || '{}');
-      const auth = await supabase('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email: body.username, password: body.password }) });
+      const auth = await supabase('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email: body.email, password: body.password }) });
       const user = await currentUser(auth.access_token);
       if (!user || user.role !== body.role) return response(403, { error: 'Akaunti haina ruhusa ya portal hii.' });
       return response(200, user, { 'Set-Cookie': `kasange_access=${encodeURIComponent(auth.access_token)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=28800` });
@@ -39,6 +51,19 @@ exports.handler = async event => {
     const user = await currentUser(accessToken);
     if (!user) return response(401, { error: 'Hujaingia.' });
     if (path === '/auth/me' && event.httpMethod === 'GET') return response(200, user);
+    if (path === '/auth/profile' && event.httpMethod === 'PUT') {
+      const body = JSON.parse(event.body || '{}');
+      const authUpdates = {};
+      if (body.email && body.email !== user.email) authUpdates.email = body.email;
+      if (body.password) authUpdates.password = body.password;
+      if (Object.keys(authUpdates).length) await supabase('/auth/v1/user', { method: 'PUT', body: JSON.stringify(authUpdates) }, accessToken);
+      const profileUpdates = {};
+      if (body.name) profileUpdates.name = body.name;
+      if (body.phone !== undefined) profileUpdates.phone = body.phone;
+      if (body.profile_photo !== undefined) profileUpdates.profile_photo = body.profile_photo;
+      if (Object.keys(profileUpdates).length) await supabase(`/rest/v1/profiles?id=eq.${user.id}`, { method: 'PATCH', body: JSON.stringify(profileUpdates) }, accessToken);
+      return response(200, await currentUser(accessToken));
+    }
     if (path === '/submissions' && event.httpMethod === 'GET') {
       const filter = user.role === 'teacher' ? `&teacher_id=eq.${user.id}` : '';
       const rows = await supabase(`/rest/v1/submissions?select=*,submission_rows(name,admission_no,marks),profiles(name)&order=id.desc${filter}`, {}, accessToken);
@@ -55,6 +80,12 @@ exports.handler = async event => {
     if (approval && event.httpMethod === 'POST') {
       if (user.role !== 'admin') return response(403, { error: 'Admin login inahitajika.' });
       await supabase(`/rest/v1/submissions?id=eq.${approval[1]}`, { method: 'PATCH', body: JSON.stringify({ status: 'Approved' }) }, accessToken);
+      return response(200, { ok: true });
+    }
+    const deletion = path.match(/^\/submissions\/(\d+)$/);
+    if (deletion && event.httpMethod === 'DELETE') {
+      if (user.role !== 'admin') return response(403, { error: 'Admin login inahitajika.' });
+      await supabase(`/rest/v1/submissions?id=eq.${deletion[1]}`, { method: 'DELETE' }, accessToken);
       return response(200, { ok: true });
     }
     return response(404, { error: 'Endpoint haipo.' });
