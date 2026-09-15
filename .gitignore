@@ -1,0 +1,14 @@
+# Local environment and secrets
+.env
+.env.*
+*.local
+
+# Local runtime files
+kasange/kasange.db
+kasange/__pycache__/
+server.log
+server.err
+
+# Editors
+.vscode/
+.DS_Store
