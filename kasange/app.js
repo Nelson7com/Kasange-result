@@ -127,7 +127,6 @@ if (logoutBtn) {
     currentTeacher = '';
 
     logoutBtn.classList.add('hidden');
-
     showPage('landing');
   };
 }
@@ -157,9 +156,7 @@ async function createTeacherAccount() {
   }
 
   try {
-    const photoInput =
-      document.getElementById('teacherCreatePhoto');
-
+    const photoInput = document.getElementById('teacherCreatePhoto');
     const photo = photoInput?.files?.[0];
 
     let profilePhoto = '';
@@ -169,9 +166,7 @@ async function createTeacherAccount() {
 
       profilePhoto = await new Promise((resolve, reject) => {
         reader.onload = () => resolve(reader.result);
-        reader.onerror = () =>
-          reject(new Error('Image upload failed'));
-
+        reader.onerror = () => reject(new Error('Image upload failed'));
         reader.readAsDataURL(photo);
       });
     }
@@ -186,13 +181,8 @@ async function createTeacherAccount() {
       })
     });
 
-    alert(
-      'Akaunti ya mwalimu imeundwa. Sasa ingia kwa jina lako na password.'
-    );
-
-    document.getElementById(
-      'teacherCreatePassword'
-    ).value = '';
+    alert('Akaunti ya mwalimu imeundwa. Sasa ingia kwa email yako na password.');
+    document.getElementById('teacherCreatePassword').value = '';
 
   } catch (error) {
     notify(error);
@@ -230,20 +220,11 @@ async function teacherEnter() {
 
     setLoggedIn(user);
 
-    document.getElementById('profileName').value =
-      user.name || '';
-
-    document.getElementById('profilePhone').value =
-      user.phone || '';
-
-    document.getElementById('profileEmail').value =
-      user.email || '';
-
+    document.getElementById('profileName').value = user.name || '';
+    document.getElementById('profilePhone').value = user.phone || '';
+    document.getElementById('profileEmail').value = user.email || '';
     document.getElementById('profilePassword').value = '';
-
-    document.getElementById(
-      'profilePasswordConfirm'
-    ).value = '';
+    document.getElementById('profilePasswordConfirm').value = '';
 
     showPage('teacherProfile');
 
@@ -283,8 +264,7 @@ async function adminEnter() {
 
     setLoggedIn(user);
 
-    const adminProfileName =
-      document.getElementById('adminName');
+    const adminProfileName = document.getElementById('adminName');
 
     if (adminProfileName) {
       adminProfileName.value = user.name || '';
@@ -333,47 +313,21 @@ async function confirmTeacherProfile() {
     return;
   }
 
-  const name = document
-    .getElementById('profileName')
-    .value
-    .trim();
-
-  const phone = document
-    .getElementById('profilePhone')
-    .value
-    .trim();
-
-  const email = document
-    .getElementById('profileEmail')
-    .value
-    .trim();
-
-  const password = document
-    .getElementById('profilePassword')
-    .value;
-
-  const passwordConfirm = document
-    .getElementById('profilePasswordConfirm')
-    .value;
-
-  const profilePhoto =
-    document.getElementById('teacherPhoto')
-      ?.files?.[0];
+  const name = document.getElementById('profileName').value.trim();
+  const phone = document.getElementById('profilePhone').value.trim();
+  const email = document.getElementById('profileEmail').value.trim();
+  const password = document.getElementById('profilePassword').value;
+  const passwordConfirm = document.getElementById('profilePasswordConfirm').value;
+  const profilePhoto = document.getElementById('teacherPhoto')?.files?.[0];
 
   if (!name || !phone || !email) {
-    notify(
-      'Jina, namba ya simu na email ni lazima.'
-    );
-
+    notify('Jina, namba ya simu na email ni lazima.');
     return;
   }
 
   if (password || passwordConfirm) {
     if (password.length < 6) {
-      notify(
-        'Password lazima iwe na angalau herufi 6.'
-      );
-
+      notify('Password lazima iwe na angalau herufi 6.');
       return;
     }
 
@@ -384,25 +338,16 @@ async function confirmTeacherProfile() {
   }
 
   try {
-    let photoData =
-      currentUser?.profile_photo || '';
+    let photoData = currentUser?.profile_photo || '';
 
     if (profilePhoto) {
-      photoData = await new Promise(
-        (resolve, reject) => {
-          const reader = new FileReader();
+      photoData = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
 
-          reader.onload = () =>
-            resolve(reader.result);
-
-          reader.onerror = () =>
-            reject(
-              new Error('Image upload failed')
-            );
-
-          reader.readAsDataURL(profilePhoto);
-        }
-      );
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Image upload failed'));
+        reader.readAsDataURL(profilePhoto);
+      });
     }
 
     await api('/auth/profile', {
@@ -443,11 +388,7 @@ async function saveAdminProfile() {
     return;
   }
 
-  const name = document
-    .getElementById('adminName')
-    .value
-    .trim();
-
+  const name = document.getElementById('adminName').value.trim();
   const photoInput = document.getElementById('adminPhoto');
   const photo = photoInput?.files?.[0];
 
@@ -459,9 +400,7 @@ async function saveAdminProfile() {
         const reader = new FileReader();
 
         reader.onload = () => resolve(reader.result);
-        reader.onerror = () =>
-          reject(new Error('Image upload failed'));
-
+        reader.onerror = () => reject(new Error('Image upload failed'));
         reader.readAsDataURL(photo);
       });
     }
@@ -494,8 +433,7 @@ function selectClass(value) {
 
   currentClass = value;
 
-  const chosenClass =
-    document.getElementById('chosenClass');
+  const chosenClass = document.getElementById('chosenClass');
 
   if (chosenClass) {
     chosenClass.textContent = value;
@@ -509,21 +447,10 @@ function selectClass(value) {
 ========================= */
 
 function validateClassInfo() {
-  const subject = normalizeSubject(
-    document.getElementById('subject').value
-  );
-
-  const term = sanitizeText(
-    document.getElementById('term').value
-  );
-
-  const year = sanitizeText(
-    document.getElementById('year').value
-  );
-
-  const stream = sanitizeText(
-    document.getElementById('stream').value
-  ).toUpperCase();
+  const subject = normalizeSubject(document.getElementById('subject').value);
+  const term = sanitizeText(document.getElementById('term').value);
+  const year = sanitizeText(document.getElementById('year').value);
+  const stream = sanitizeText(document.getElementById('stream').value).toUpperCase();
 
   if (!subject || !term || !year) {
     notify('Jaza Somo, Term na Mwaka.');
@@ -531,26 +458,17 @@ function validateClassInfo() {
   }
 
   if (!/^\d{4}$/.test(year)) {
-    notify(
-      'Mwaka lazima uwe miaka 4 ya namba, mfano 2026.'
-    );
-
+    notify('Mwaka lazima uwe miaka 4 ya namba, mfano 2026.');
     return false;
   }
 
   if (!/^Term\s*[1-3]$/i.test(term)) {
-    notify(
-      'Term lazima iwe Term 1, Term 2, au Term 3.'
-    );
-
+    notify('Term lazima iwe Term 1, Term 2, au Term 3.');
     return false;
   }
 
   if (stream && !/^[A-Z]$/.test(stream)) {
-    notify(
-      'Mkondo lazima uwe herufi moja, mfano A, B au C.'
-    );
-
+    notify('Mkondo lazima uwe herufi moja, mfano A, B au C.');
     return false;
   }
 
@@ -562,21 +480,10 @@ function validateClassInfo() {
 ========================= */
 
 function goToResults() {
-  const subject = normalizeSubject(
-    document.getElementById('subject').value
-  );
-
-  const term = sanitizeText(
-    document.getElementById('term').value
-  );
-
-  const year = sanitizeText(
-    document.getElementById('year').value
-  );
-
-  const stream = sanitizeText(
-    document.getElementById('stream').value
-  ).toUpperCase();
+  const subject = normalizeSubject(document.getElementById('subject').value);
+  const term = sanitizeText(document.getElementById('term').value);
+  const year = sanitizeText(document.getElementById('year').value);
+  const stream = sanitizeText(document.getElementById('stream').value).toUpperCase();
 
   if (!validateClassInfo()) {
     return;
@@ -585,40 +492,25 @@ function goToResults() {
   document.getElementById('subject').value = subject;
   document.getElementById('term').value = term;
   document.getElementById('year').value = year;
-  document.getElementById('stream').value =
-    stream || 'A';
+  document.getElementById('stream').value = stream || 'A';
 
   document.getElementById('infoSummary').textContent =
     `${currentClass} • ${subject} • ${term} • ${year} • Mkondo ${stream || 'A'} • Mwalimu: ${currentTeacher}`;
 
-  document.getElementById('resultClass').textContent =
-    currentClass;
+  document.getElementById('resultClass').textContent = currentClass;
 
   document.getElementById('resultMeta').textContent =
     `${subject} | ${term} | ${year} | Mkondo ${stream || 'A'} | Mwalimu: ${currentTeacher}`;
 
   if (!currentRows.length) {
     currentRows = [
-      {
-        name: '',
-        adm: '',
-        marks: ''
-      },
-      {
-        name: '',
-        adm: '',
-        marks: ''
-      },
-      {
-        name: '',
-        adm: '',
-        marks: ''
-      }
+      { name: '', adm: '', marks: '' },
+      { name: '', adm: '', marks: '' },
+      { name: '', adm: '', marks: '' }
     ];
   }
 
   renderRows();
-
   showPage('results');
 }
 
@@ -643,8 +535,7 @@ function grade(marks) {
 ========================= */
 
 function renderRows() {
-  const resultBody =
-    document.getElementById('resultBody');
+  const resultBody = document.getElementById('resultBody');
 
   if (!resultBody) {
     return;
@@ -654,7 +545,6 @@ function renderRows() {
     .map((row, index) => `
       <tr>
         <td>${index + 1}</td>
-
         <td>
           <input
             value="${sanitizeText(row.name)}"
@@ -662,7 +552,6 @@ function renderRows() {
             placeholder="Jina"
           >
         </td>
-
         <td>
           <input
             value="${sanitizeText(row.adm)}"
@@ -670,7 +559,6 @@ function renderRows() {
             placeholder="Admission No. (optional)"
           >
         </td>
-
         <td>
           <input
             type="number"
@@ -681,17 +569,11 @@ function renderRows() {
             placeholder="0-100"
           >
         </td>
-
         <td>
           <b>
-            ${
-              row.marks !== ''
-                ? grade(row.marks)
-                : '-'
-            }
+            ${row.marks !== '' ? grade(row.marks) : '-'}
           </b>
         </td>
-
         <td>
           <button
             class="small-btn"
@@ -743,18 +625,12 @@ function validateRows(rows) {
     const name = sanitizeText(row.name);
 
     if (!name) {
-      notify(
-        'Jina la mwanafunzi haliwezi kuwa tupu.'
-      );
-
+      notify('Jina la mwanafunzi haliwezi kuwa tupu.');
       return false;
     }
 
     if (name.length < 2) {
-      notify(
-        'Jina la mwanafunzi ni fupi sana.'
-      );
-
+      notify('Jina la mwanafunzi ni fupi sana.');
       return false;
     }
 
@@ -764,37 +640,22 @@ function validateRows(rows) {
       row.marks === undefined ||
       Number.isNaN(Number(row.marks))
     ) {
-      notify(
-        'Marks za kila mwanafunzi zinahitajika.'
-      );
-
+      notify('Marks za kila mwanafunzi zinahitajika.');
       return false;
     }
 
     const mark = Number(row.marks);
 
-    if (
-      mark < 0 ||
-      mark > 100 ||
-      !Number.isInteger(mark)
-    ) {
-      notify(
-        'Marks lazima ziwe namba kamili kati ya 0 na 100.'
-      );
-
+    if (mark < 0 || mark > 100 || !Number.isInteger(mark)) {
+      notify('Marks lazima ziwe namba kamili kati ya 0 na 100.');
       return false;
     }
 
     if (
       row.adm &&
-      !/^[A-Za-z0-9\-\/ ]{2,30}$/.test(
-        sanitizeText(row.adm)
-      )
+      !/^[A-Za-z0-9\-\/ ]{2,30}$/.test(sanitizeText(row.adm))
     ) {
-      notify(
-        'Admission No. ina format isiyoruhusiwa.'
-      );
-
+      notify('Admission No. ina format isiyoruhusiwa.');
       return false;
     }
   }
@@ -811,64 +672,43 @@ function reviewSubmission() {
     return;
   }
 
-  const subject = normalizeSubject(
-    document.getElementById('subject').value
-  );
-
-  const term = sanitizeText(
-    document.getElementById('term').value
-  );
-
-  const year = sanitizeText(
-    document.getElementById('year').value
-  );
-
-  const stream =
-    sanitizeText(
-      document.getElementById('stream').value
-    ).toUpperCase() || 'A';
+  const subject = normalizeSubject(document.getElementById('subject').value);
+  const term = sanitizeText(document.getElementById('term').value);
+  const year = sanitizeText(document.getElementById('year').value);
+  const stream = sanitizeText(document.getElementById('stream').value).toUpperCase() || 'A';
 
   document.getElementById('reviewContent').innerHTML = `
     <div class="review-row">
       <b>Darasa</b>
       <span>${currentClass}</span>
     </div>
-
     <div class="review-row">
       <b>Mkondo</b>
       <span>${stream}</span>
     </div>
-
     <div class="review-row">
       <b>Somo</b>
       <span>${subject}</span>
     </div>
-
     <div class="review-row">
       <b>Term / Mwaka</b>
       <span>${term} ${year}</span>
     </div>
-
     <div class="review-row">
       <b>Mwalimu</b>
       <span>${currentTeacher}</span>
     </div>
-
     <div class="review-row">
       <b>Idadi</b>
       <span>${currentRows.length}</span>
     </div>
-
     <div class="review-row">
       <b>Wanafunzi</b>
       <span>
         ${currentRows
           .map(
             row =>
-              `${sanitizeText(row.name)}
-              (${sanitizeText(row.adm) || 'No Adm'})
-              ${row.marks} -
-              ${grade(row.marks)}`
+              `${sanitizeText(row.name)} (${sanitizeText(row.adm) || 'No Adm'}) ${row.marks} -${grade(row.marks)}`
           )
           .join(', ')}
       </span>
@@ -890,27 +730,12 @@ async function submitResults() {
   try {
     await api('/submissions', {
       method: 'POST',
-
       body: JSON.stringify({
         className: currentClass,
-
-        subject: normalizeSubject(
-          document.getElementById('subject').value
-        ),
-
-        term: sanitizeText(
-          document.getElementById('term').value
-        ),
-
-        year: sanitizeText(
-          document.getElementById('year').value
-        ),
-
-        stream:
-          sanitizeText(
-            document.getElementById('stream').value
-          ).toUpperCase() || 'A',
-
+        subject: normalizeSubject(document.getElementById('subject').value),
+        term: sanitizeText(document.getElementById('term').value),
+        year: sanitizeText(document.getElementById('year').value),
+        stream: sanitizeText(document.getElementById('stream').value).toUpperCase() || 'A',
         rows: currentRows.map(row => ({
           name: sanitizeText(row.name),
           adm: sanitizeText(row.adm),
@@ -920,11 +745,7 @@ async function submitResults() {
     });
 
     currentRows = [];
-
-    notify(
-      'Matokeo yamesubmit kwa Admin.'
-    );
-
+    notify('Matokeo yamesubmit kwa Admin.');
     showPage('postSubmit');
 
   } catch (error) {
@@ -939,9 +760,7 @@ async function submitResults() {
 function rowsTableMarkup(rows = []) {
   return `
     <div class="results-table-wrap">
-
       <table class="results-table">
-
         <thead>
           <tr>
             <th>#</th>
@@ -951,9 +770,7 @@ function rowsTableMarkup(rows = []) {
             <th>Grade</th>
           </tr>
         </thead>
-
         <tbody>
-
           ${
             rows.length
               ? rows
@@ -971,17 +788,12 @@ function rowsTableMarkup(rows = []) {
                   .join('')
               : `
                 <tr>
-                  <td colspan="5">
-                    No results
-                  </td>
+                  <td colspan="5">No results</td>
                 </tr>
               `
           }
-
         </tbody>
-
       </table>
-
     </div>
   `;
 }
@@ -991,92 +803,42 @@ function rowsTableMarkup(rows = []) {
 ========================= */
 
 function submissionHtml(item, admin = false) {
-  const rowsMarkup =
-    rowsTableMarkup(item.rows || []);
+  const rowsMarkup = rowsTableMarkup(item.rows || []);
 
   return `
     <div class="history-item">
-
       <div class="history-top-row">
-
         <div>
-
           <b>
-            ${item.className || item.class || '-'}
-            — ${item.subject || '-'}
+            ${item.className || item.class || '-'} — ${item.subject || '-'}
           </b>
-
           <div class="meta-line">
-            ${
-              admin
-                ? `Teacher: ${item.teacherName || item.teacher || '-'} • `
-                : ''
-            }
-
-            Mkondo ${item.stream || 'A'}
-            • ${item.term || '-'}
-            • ${item.year || '-'}
+            ${admin ? `Teacher: ${item.teacherName || item.teacher || '-'} • ` : ''}
+            Mkondo ${item.stream || 'A'} • ${item.term || '-'} • ${item.year || '-'}
           </div>
-
           <small>
-            ${item.count || (item.rows || []).length}
-            students
-            •
-            ${
-              item.createdAt
-                ? new Date(item.createdAt).toLocaleString()
-                : ''
-            }
+            ${item.count || (item.rows || []).length} students •
+            ${item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}
           </small>
-
         </div>
-
         <div class="history-actions">
-
           <span class="status">
             ${item.status || 'Pending Admin'}
           </span>
-
           ${
             admin
               ? `
-                <button
-                  class="primary"
-                  onclick="approve(${item.id})"
-                >
-                  Approve
-                </button>
-
-                <button
-                  class="secondary"
-                  onclick="viewSubmission(${item.id})"
-                >
-                  View
-                </button>
-
-                <button
-                  class="danger"
-                  onclick="deleteSubmission(${item.id})"
-                >
-                  Delete
-                </button>
+                <button class="primary" onclick="approve(${item.id})">Approve</button>
+                <button class="secondary" onclick="viewSubmission(${item.id})">View</button>
+                <button class="danger" onclick="deleteSubmission(${item.id})">Delete</button>
               `
               : `
-                <button
-                  class="primary"
-                  onclick="resubmitSubmission(${item.id})"
-                >
-                  Resubmit
-                </button>
+                <button class="primary" onclick="resubmitSubmission(${item.id})">Resubmit</button>
               `
           }
-
         </div>
-
       </div>
-
       ${rowsMarkup}
-
     </div>
   `;
 }
@@ -1089,17 +851,14 @@ async function loadHistory() {
   try {
     history = await api('/submissions');
 
-    const historyList =
-      document.getElementById('historyList');
+    const historyList = document.getElementById('historyList');
 
     if (!historyList) {
       return;
     }
 
     historyList.innerHTML = history.length
-      ? history
-          .map(item => submissionHtml(item))
-          .join('')
+      ? history.map(item => submissionHtml(item)).join('')
       : `
         <div class="card">
           Hakuna history bado.
@@ -1121,41 +880,28 @@ async function loadAdmin() {
   }
 
   try {
-    submissions =
-      await api('/submissions');
+    submissions = await api('/submissions');
 
-    const pending =
-      submissions.filter(
-        item =>
-          item.status === 'Pending Admin'
-      ).length;
-
-    const pendingCount =
-      document.getElementById('pendingCount');
+    const pending = submissions.filter(item => item.status === 'Pending Admin').length;
+    const pendingCount = document.getElementById('pendingCount');
 
     if (pendingCount) {
       pendingCount.textContent = pending;
     }
 
-    const adminList =
-      document.getElementById('adminList');
+    const adminList = document.getElementById('adminList');
 
     if (!adminList) {
       return;
     }
 
-    adminList.innerHTML =
-      submissions.length
-        ? submissions
-            .map(item =>
-              submissionHtml(item, true)
-            )
-            .join('')
-        : `
-          <div class="card">
-            Hakuna submissions bado.
-          </div>
-        `;
+    adminList.innerHTML = submissions.length
+      ? submissions.map(item => submissionHtml(item, true)).join('')
+      : `
+        <div class="card">
+          Hakuna submissions bado.
+        </div>
+      `;
 
   } catch (error) {
     notify(error);
@@ -1168,12 +914,9 @@ async function loadAdmin() {
 
 async function approve(id) {
   try {
-    await api(
-      `/submissions/${id}/approve`,
-      {
-        method: 'POST'
-      }
-    );
+    await api(`/submissions/${id}/approve`, {
+      method: 'POST'
+    });
 
     await loadAdmin();
 
@@ -1188,20 +931,13 @@ async function approve(id) {
 
 async function deleteSubmission(id) {
   try {
-    if (
-      !confirm(
-        'Unataka kufuta matokeo haya?'
-      )
-    ) {
+    if (!confirm('Unataka kufuta matokeo haya?')) {
       return;
     }
 
-    await api(
-      `/submissions/${id}`,
-      {
-        method: 'DELETE'
-      }
-    );
+    await api(`/submissions/${id}`, {
+      method: 'DELETE'
+    });
 
     await loadAdmin();
     await loadHistory();
@@ -1216,139 +952,23 @@ async function deleteSubmission(id) {
 ========================= */
 
 function resubmitSubmission(id) {
-  const item =
-    history.find(
-      value => value.id === id
-    );
+  const item = history.find(value => value.id === id);
 
   if (!item) {
     return;
   }
 
-  currentClass =
-    item.className || item.class || '';
+  currentClass = item.className || item.class || '';
+  currentRows = (item.rows || []).map(r => ({
+    name: r.name || '',
+    adm: r.adm || '',
+    marks: r.marks !== undefined ? r.marks : ''
+  }));
 
-  currentRows =
-    (item.rows || []).map(row => ({
-      name: row.name || '',
-      adm: row.adm || '',
-      marks: row.marks
-    }));
+  document.getElementById('subject').value = item.subject || '';
+  document.getElementById('term').value = item.term || '';
+  document.getElementById('year').value = item.year || '';
+  document.getElementById('stream').value = item.stream || 'A';
 
-  document.getElementById('subject').value =
-    item.subject || '';
-
-  document.getElementById('term').value =
-    item.term || '';
-
-  document.getElementById('year').value =
-    item.year || '';
-
-  document.getElementById('stream').value =
-    item.stream || 'A';
-
-  document.getElementById('chosenClass').textContent =
-    currentClass;
-
-  renderRows();
-
-  showPage('results');
-
-  alert(
-    'Matokeo yamewekwa tena kwa editing. Ukibofya submit tena, yatawasilishwa tena kwa admin.'
-  );
+  showPage('classInfo');
 }
-
-/* =========================
-   VIEW SUBMISSION
-========================= */
-
-function viewSubmission(itemId) {
-  const item =
-    submissions.find(
-      value => value.id === itemId
-    );
-
-  if (!item) {
-    return;
-  }
-
-  document.getElementById(
-    'adminDetailContent'
-  ).innerHTML = `
-
-    <div class="review-row">
-      <b>Class</b>
-      <span>
-        ${item.className || item.class || '-'}
-      </span>
-    </div>
-
-    <div class="review-row">
-      <b>Teacher</b>
-      <span>
-        ${item.teacherName || item.teacher || '-'}
-      </span>
-    </div>
-
-    <div class="review-row">
-      <b>Subject</b>
-      <span>
-        ${item.subject || '-'}
-      </span>
-    </div>
-
-    <div class="review-row">
-      <b>Term / Year</b>
-      <span>
-        ${item.term || '-'}
-        ${item.year || '-'}
-      </span>
-    </div>
-
-    <div class="review-row">
-      <b>Stream</b>
-      <span>
-        ${item.stream || 'A'}
-      </span>
-    </div>
-
-    <div class="review-row">
-      <b>Status</b>
-      <span>
-        ${item.status || '-'}
-      </span>
-    </div>
-
-    ${rowsTableMarkup(item.rows || [])}
-
-  `;
-
-  document
-    .getElementById('adminDetail')
-    .classList.remove('hidden');
-}
-
-/* =========================
-   INITIALIZE
-========================= */
-
-async function init() {
-  try {
-    const user =
-      await api('/auth/me');
-
-    setLoggedIn(user);
-
-    showPage(
-      user.role === 'admin'
-        ? 'admin'
-        : 'teacherProfile'
-    );
-
-  } catch (_) {
-    showPage('landing');
-  }
-}
-
-init();
