@@ -1,368 +1,974 @@
 let currentClass = '';
 let currentRows = [];
 let currentTeacher = '';
-let currentTeacherRole = '';
-let currentTeacherBio = '';
-let currentAdminName = '';
-let currentAdminRole = '';
-let currentAdminBio = '';
-let history = [];
+let currentUser = null;
+
 let submissions = [];
+let history = [];
 
 const pages = [
-  'landing', 'teacherLogin', 'adminLogin', 'classes', 
-  'teacherProfile', 'classInfo', 'results', 'review', 
-  'postSubmit', 'history', 'admin', 'adminProfile'
+  'landing',
+  'teacherLogin',
+  'adminLogin',
+  'classes',
+  'teacherProfile',
+  'classInfo',
+  'results',
+  'review',
+  'postSubmit',
+  'history',
+  'admin',
+  'adminProfile'
 ];
 
-const ADMIN_PASSWORD = 'admin123';
-const TEACHER_PASSWORD = 'teacher123';
-
-// Supabase Configuration - Weka Keys Zako Hapa
-const SUPABASE_URL = 'https://nnytkdjooerftqowcxvu.supabase.co/rest/v1/';
-const SUPABASE_ANON_KEY = 'sb_publishable_OtNLdiJlOW40cDdLvLO3QA_CKBVmcws';
-
-const supabase = (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL !== 'https://your-project-ref.supabase.co') 
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
-  : null;
-
-// Page Navigation
-function showPage(id) {
-  pages.forEach(p => {
-    const el = document.getElementById(p);
-    if (el) el.classList.toggle('hidden', p !== id);
+async function api(path, options = {}) {
+  const response = await fetch(`/api${path}`, {
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    },
+    ...options
   });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload.error || 'Server error');
+  }
+
+  return payload;
+}
+
+function notify(error) {
+  alert(error instanceof Error ? error.message : error);
+}
+
+function sanitizeText(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[<>]/g, '');
+}
+
+function normalizeSubject(value) {
+  return sanitizeText(value).replace(/\s+/g, ' ');
+}
+
+function showPage(id) {
+  pages.forEach(page => {
+    const element = document.getElementById(page);
+
+    if (element) {
+      element.classList.toggle('hidden', page !== id);
+    }
+  });
+
   window.scrollTo(0, 0);
-  if (id === 'history') renderHistory();
-  if (id === 'admin') renderAdmin();
+
+  if (id === 'history') {
+    loadHistory();
+  }
+
+  if (id === 'admin') {
+    loadAdmin();
+  }
 }
 
-// Dark / Light Theme Toggle
+function setLoggedIn(user) {
+  currentUser = user;
+  currentTeacher = user.name || '';
+
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  if (logoutBtn) {
+    logoutBtn.classList.remove('hidden');
+  }
+}
+
+function requireRole(role) {
+  if (!currentUser || currentUser.role !== role) {
+    showPage(role === 'admin' ? 'adminLogin' : 'teacherLogin');
+    return false;
+  }
+
+  return true;
+}
+
+/* =========================
+   THEME
+========================= */
+
 const themeBtn = document.getElementById('themeBtn');
+
 if (themeBtn) {
-  themeBtn.onclick = () => document.body.classList.toggle('dark');
+  themeBtn.onclick = () => {
+    document.body.classList.toggle('dark');
+  };
 }
 
-// Logout
+/* =========================
+   LOGOUT
+========================= */
+
 const logoutBtn = document.getElementById('logoutBtn');
+
 if (logoutBtn) {
-  logoutBtn.onclick = () => {
+  logoutBtn.onclick = async () => {
+    try {
+      await api('/auth/logout', {
+        method: 'POST'
+      });
+    } catch (error) {
+      notify(error);
+    }
+
+    currentUser = null;
+    currentRows = [];
+    currentTeacher = '';
+
     logoutBtn.classList.add('hidden');
     showPage('landing');
   };
 }
 
-// Teacher Authentication
-function teacherEnter() {
-  let nameInput = document.getElementById('teacherName');
-  let passInput = document.getElementById('teacherPassword');
-  
-  let teacherName = sanitizeText(nameInput ? nameInput.value : '');
-  let teacherPassword = sanitizeText(passInput ? passInput.value : '');
-  
-  if (!teacherName) { alert('Jina la mwalimu linahitajika.'); return; }
-  if (!teacherPassword) { alert('Weka password ya mwalimu.'); return; }
-  if (teacherPassword !== TEACHER_PASSWORD) { alert('Password ya mwalimu si sahihi.'); return; }
-  
-  currentTeacher = teacherName;
-  if (logoutBtn) logoutBtn.classList.remove('hidden');
-  
-  // Jaza jina kwenye profile
-  let profName = document.getElementById('profileName');
-  if (profName) profName.value = currentTeacher;
-  
-  showPage('teacherProfile');
+/* =========================
+   TEACHER ACCOUNT
+========================= */
+
+async function createTeacherAccount() {
+  const name = document
+    .getElementById('teacherCreateName')
+    .value
+    .trim();
+
+  const email = document
+    .getElementById('teacherCreateEmail')
+    .value
+    .trim();
+
+  const password = document
+    .getElementById('teacherCreatePassword')
+    .value;
+
+  if (!name || !password) {
+    notify('Jaza jina na password kabla ya kuunda akaunti ya mwalimu.');
+    return;
+  }
+
+  try {
+    const photoInput = document.getElementById('teacherCreatePhoto');
+    const photo = photoInput?.files?.[0];
+
+    let profilePhoto = '';
+
+    if (photo) {
+      const reader = new FileReader();
+
+      profilePhoto = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Image upload failed'));
+        reader.readAsDataURL(photo);
+      });
+    }
+
+    await api('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        profile_photo: profilePhoto
+      })
+    });
+
+    alert('Akaunti ya mwalimu imeundwa. Sasa ingia kwa email yako na password.');
+    document.getElementById('teacherCreatePassword').value = '';
+
+  } catch (error) {
+    notify(error);
+  }
 }
 
-// Admin Authentication
-function adminEnter() {
-  let nameInput = document.getElementById('adminName');
-  let passInput = document.getElementById('adminPassword');
-  
-  let adminName = sanitizeText(nameInput ? nameInput.value : '');
-  let adminPassword = sanitizeText(passInput ? passInput.value : '');
-  
-  if (!adminName) { alert('Jina la admin linahitajika.'); return; }
-  if (!adminPassword) { alert('Weka password ya admin.'); return; }
-  if (adminPassword !== ADMIN_PASSWORD) { alert('Password ya admin si sahihi.'); return; }
-  
-  currentAdminName = adminName;
-  if (logoutBtn) logoutBtn.classList.remove('hidden');
-  showPage('adminProfile');
+/* =========================
+   TEACHER LOGIN
+========================= */
+
+async function teacherEnter() {
+  const email = document
+    .getElementById('teacherLoginEmail')
+    .value
+    .trim();
+
+  const password = document
+    .getElementById('teacherLoginPassword')
+    .value;
+
+  if (!email || !password) {
+    notify('Jaza email na password yako.');
+    return;
+  }
+
+  try {
+    const user = await api('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        password,
+        role: 'teacher'
+      })
+    });
+
+    setLoggedIn(user);
+
+    document.getElementById('profileName').value = user.name || '';
+    document.getElementById('profilePhone').value = user.phone || '';
+    document.getElementById('profileEmail').value = user.email || '';
+    document.getElementById('profilePassword').value = '';
+    document.getElementById('profilePasswordConfirm').value = '';
+
+    showPage('teacherProfile');
+
+  } catch (error) {
+    notify(error);
+  }
 }
 
-// Image Preview for Profile Photos
+/* =========================
+   ADMIN LOGIN
+========================= */
+
+async function adminEnter() {
+  try {
+    const email = document
+      .getElementById('adminEmail')
+      .value
+      .trim();
+
+    const password = document
+      .getElementById('adminPassword')
+      .value;
+
+    if (!email || !password) {
+      notify('Jaza email na password ya admin.');
+      return;
+    }
+
+    const user = await api('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        password,
+        role: 'admin'
+      })
+    });
+
+    setLoggedIn(user);
+
+    const adminProfileName = document.getElementById('adminName');
+
+    if (adminProfileName) {
+      adminProfileName.value = user.name || '';
+    }
+
+    showPage('adminProfile');
+
+  } catch (error) {
+    notify(error);
+  }
+}
+
+/* =========================
+   IMAGE PREVIEW
+========================= */
+
 function preview(input, id) {
-  if (input.files && input.files[0]) {
-    let r = new FileReader();
-    r.onload = e => {
-      let previewEl = document.getElementById(id);
-      if (previewEl) previewEl.innerHTML = `<img src="${e.target.result}" alt="Profile Preview">`;
-    };
-    r.readAsDataURL(input.files[0]);
+  if (!input?.files?.[0]) {
+    return;
   }
+
+  const reader = new FileReader();
+
+  reader.onload = event => {
+    const target = document.getElementById(id);
+
+    if (target) {
+      target.innerHTML = `
+        <img
+          src="${event.target.result}"
+          alt="Profile"
+        >
+      `;
+    }
+  };
+
+  reader.readAsDataURL(input.files[0]);
 }
 
-// Save Teacher Profile to Supabase
+/* =========================
+   TEACHER PROFILE
+========================= */
+
 async function confirmTeacherProfile() {
-  let n = sanitizeText(document.getElementById('profileName')?.value);
-  let role = sanitizeText(document.getElementById('profileRole')?.value);
-  let bio = sanitizeText(document.getElementById('profileBio')?.value);
-  
-  if (n) currentTeacher = n;
-  currentTeacherRole = role || 'Mwalimu';
-  currentTeacherBio = bio || '';
-
-  if (supabase) {
-    const { error } = await supabase.from('teachers').insert([{
-      name: currentTeacher,
-      role: currentTeacherRole,
-      bio: currentTeacherBio
-    }]);
-    if (error) console.error('Error saving teacher profile:', error.message);
+  if (!requireRole('teacher')) {
+    return;
   }
 
-  showPage('classes');
+  const name = document.getElementById('profileName').value.trim();
+  const phone = document.getElementById('profilePhone').value.trim();
+  const email = document.getElementById('profileEmail').value.trim();
+  const password = document.getElementById('profilePassword').value;
+  const passwordConfirm = document.getElementById('profilePasswordConfirm').value;
+  const profilePhoto = document.getElementById('teacherPhoto')?.files?.[0];
+
+  if (!name || !phone || !email) {
+    notify('Jina, namba ya simu na email ni lazima.');
+    return;
+  }
+
+  if (password || passwordConfirm) {
+    if (password.length < 6) {
+      notify('Password lazima iwe na angalau herufi 6.');
+      return;
+    }
+
+    if (password !== passwordConfirm) {
+      notify('Password hailingani.');
+      return;
+    }
+  }
+
+  try {
+    let photoData = currentUser?.profile_photo || '';
+
+    if (profilePhoto) {
+      photoData = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Image upload failed'));
+        reader.readAsDataURL(profilePhoto);
+      });
+    }
+
+    await api('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify({
+        name,
+        phone,
+        email,
+        profile_photo: photoData,
+        password: password || undefined
+      })
+    });
+
+    currentTeacher = name;
+
+    currentUser = {
+      ...currentUser,
+      name,
+      phone,
+      email,
+      profile_photo: photoData,
+      role: 'teacher'
+    };
+
+    showPage('classes');
+
+  } catch (error) {
+    notify(error);
+  }
 }
 
-// Save Admin Profile to Supabase
+/* =========================
+   ADMIN PROFILE
+========================= */
+
 async function saveAdminProfile() {
-  let role = sanitizeText(document.getElementById('adminRole')?.value);
-  let bio = sanitizeText(document.getElementById('adminBio')?.value);
-  
-  currentAdminRole = role || 'Msimamizi Mkuu';
-  currentAdminBio = bio || '';
-
-  if (supabase) {
-    const { error } = await supabase.from('admins').insert([{
-      name: currentAdminName || 'Admin',
-      role: currentAdminRole,
-      bio: currentAdminBio
-    }]);
-    if (error) console.error('Error saving admin profile:', error.message);
+  if (!requireRole('admin')) {
+    return;
   }
 
-  showPage('admin');
+  const name = document.getElementById('adminName').value.trim();
+  const photoInput = document.getElementById('adminPhoto');
+  const photo = photoInput?.files?.[0];
+
+  try {
+    let photoData = currentUser?.profile_photo || '';
+
+    if (photo) {
+      photoData = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Image upload failed'));
+        reader.readAsDataURL(photo);
+      });
+    }
+
+    const updated = await api('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify({
+        name: name || currentUser.name,
+        profile_photo: photoData
+      })
+    });
+
+    currentUser = updated;
+
+    showPage('admin');
+
+  } catch (error) {
+    notify(error);
+  }
 }
 
-function selectClass(c) {
-  currentClass = c;
-  let chosenClassEl = document.getElementById('chosenClass');
-  if (chosenClassEl) chosenClassEl.textContent = c;
+/* =========================
+   CLASS
+========================= */
+
+function selectClass(value) {
+  if (!requireRole('teacher')) {
+    return;
+  }
+
+  currentClass = value;
+
+  const chosenClass = document.getElementById('chosenClass');
+
+  if (chosenClass) {
+    chosenClass.textContent = value;
+  }
+
   showPage('classInfo');
 }
 
-function sanitizeText(value) {
-  return String(value || '').trim().replace(/[<>]/g, '');
+/* =========================
+   CLASS VALIDATION
+========================= */
+
+function validateClassInfo() {
+  const subject = normalizeSubject(document.getElementById('subject').value);
+  const term = sanitizeText(document.getElementById('term').value);
+  const year = sanitizeText(document.getElementById('year').value);
+  const stream = sanitizeText(document.getElementById('stream').value).toUpperCase();
+
+  if (!subject || !term || !year) {
+    notify('Jaza Somo, Term na Mwaka.');
+    return false;
+  }
+
+  if (!/^\d{4}$/.test(year)) {
+    notify('Mwaka lazima uwe miaka 4 ya namba, mfano 2026.');
+    return false;
+  }
+
+  if (!/^Term\s*[1-3]$/i.test(term)) {
+    notify('Term lazima iwe Term 1, Term 2, au Term 3.');
+    return false;
+  }
+
+  if (stream && !/^[A-Z]$/.test(stream)) {
+    notify('Mkondo lazima uwe herufi moja, mfano A, B au C.');
+    return false;
+  }
+
+  return true;
 }
 
-function normalizeSubject(value) {
-  return sanitizeText(value).replace(/\s+/g, ' ');
-} 
+/* =========================
+   RESULTS PAGE
+========================= */
 
 function goToResults() {
-  let s = normalizeSubject(document.getElementById('subject')?.value);
-  let t = sanitizeText(document.getElementById('term')?.value);
-  let y = sanitizeText(document.getElementById('year')?.value);
-  let stream = sanitizeText(document.getElementById('stream')?.value).toUpperCase() || 'A';
-  
-  if (!s || !t || !y) { alert('Jaza Somo, Term na Mwaka kabla ya kuendelea.'); return; }
-  
-  let infoSummary = document.getElementById('infoSummary');
-  let resultClass = document.getElementById('resultClass');
-  let resultMeta = document.getElementById('resultMeta');
-  
-  if (infoSummary) infoSummary.textContent = `${currentClass} — ${s} — ${t} — ${y} — Mkondo ${stream} — Mwalimu: ${currentTeacher}`;
-  if (resultClass) resultClass.textContent = currentClass;
-  if (resultMeta) resultMeta.textContent = `${s} | ${t} | ${y} | Mkondo ${stream} | Mwalimu: ${currentTeacher}`;
-  
-  if (!currentRows.length) {
-    currentRows = [{ name: '', adm: '', marks: '' }, { name: '', adm: '', marks: '' }];
+  const subject = normalizeSubject(document.getElementById('subject').value);
+  const term = sanitizeText(document.getElementById('term').value);
+  const year = sanitizeText(document.getElementById('year').value);
+  const stream = sanitizeText(document.getElementById('stream').value).toUpperCase();
+
+  if (!validateClassInfo()) {
+    return;
   }
+
+  document.getElementById('subject').value = subject;
+  document.getElementById('term').value = term;
+  document.getElementById('year').value = year;
+  document.getElementById('stream').value = stream || 'A';
+
+  document.getElementById('infoSummary').textContent =
+    `${currentClass} • ${subject} • ${term} • ${year} • Mkondo ${stream || 'A'} • Mwalimu: ${currentTeacher}`;
+
+  document.getElementById('resultClass').textContent = currentClass;
+
+  document.getElementById('resultMeta').textContent =
+    `${subject} | ${term} | ${year} | Mkondo ${stream || 'A'} | Mwalimu: ${currentTeacher}`;
+
+  if (!currentRows.length) {
+    currentRows = [
+      { name: '', adm: '', marks: '' },
+      { name: '', adm: '', marks: '' },
+      { name: '', adm: '', marks: '' }
+    ];
+  }
+
   renderRows();
   showPage('results');
 }
 
-function grade(m) {
-  m = Number(m);
-  if (m >= 80) return 'A';
-  if (m >= 70) return 'B+';
-  if (m >= 60) return 'B';
-  if (m >= 50) return 'C';
-  if (m >= 40) return 'D';
+/* =========================
+   GRADE
+========================= */
+
+function grade(marks) {
+  const mark = Number(marks);
+
+  if (mark >= 80) return 'A';
+  if (mark >= 70) return 'B+';
+  if (mark >= 60) return 'B';
+  if (mark >= 50) return 'C';
+  if (mark >= 40) return 'D';
+
   return 'F';
 }
 
+/* =========================
+   RENDER STUDENTS
+========================= */
+
 function renderRows() {
-  let tbody = document.getElementById('resultBody');
-  if (!tbody) return;
-  
-  tbody.innerHTML = currentRows.map((r, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td><input value="${sanitizeText(r.name)}" onchange="currentRows[${i}].name=sanitizeText(this.value)" placeholder="Jina la Mwanafunzi"></td>
-      <td><input value="${sanitizeText(r.adm)}" onchange="currentRows[${i}].adm=sanitizeText(this.value)" placeholder="Admission No."></td>
-      <td><input type="number" min="0" max="100" value="${r.marks}" onchange="currentRows[${i}].marks=Math.max(0,Math.min(100,Number(this.value)))" placeholder="0-100"></td>
-      <td><b>${r.marks !== '' ? grade(r.marks) : '-'}</b></td>
-      <td><button class="small-btn" onclick="deleteStudent(${i})">Futa</button></td>
-    </tr>
-  `).join('');
+  const resultBody = document.getElementById('resultBody');
+
+  if (!resultBody) {
+    return;
+  }
+
+  resultBody.innerHTML = currentRows
+    .map((row, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>
+          <input
+            value="${sanitizeText(row.name)}"
+            onchange="currentRows[${index}].name=sanitizeText(this.value)"
+            placeholder="Jina"
+          >
+        </td>
+        <td>
+          <input
+            value="${sanitizeText(row.adm)}"
+            onchange="currentRows[${index}].adm=sanitizeText(this.value)"
+            placeholder="Admission No. (optional)"
+          >
+        </td>
+        <td>
+          <input
+            type="number"
+            min="0"
+            max="100"
+            value="${row.marks}"
+            onchange="currentRows[${index}].marks=this.value"
+            placeholder="0-100"
+          >
+        </td>
+        <td>
+          <b>
+            ${row.marks !== '' ? grade(row.marks) : '-'}
+          </b>
+        </td>
+        <td>
+          <button
+            class="small-btn"
+            onclick="deleteStudent(${index})"
+          >
+            Futa
+          </button>
+        </td>
+      </tr>
+    `)
+    .join('');
 }
 
 function addStudent() {
-  currentRows.push({ name: '', adm: '', marks: '' });
+  currentRows.push({
+    name: '',
+    adm: '',
+    marks: ''
+  });
+
   renderRows();
 }
 
-function deleteStudent(i) {
-  if (currentRows.length > 1) {
-    currentRows.splice(i, 1);
-  } else {
-    currentRows = [{ name: '', adm: '', marks: '' }];
+function deleteStudent(index) {
+  currentRows.splice(index, 1);
+
+  if (!currentRows.length) {
+    currentRows.push({
+      name: '',
+      adm: '',
+      marks: ''
+    });
   }
+
   renderRows();
 }
+
+/* =========================
+   VALIDATE STUDENTS
+========================= */
+
+function validateRows(rows) {
+  if (!rows.length) {
+    notify('Hakuna mwanafunzi aliyeingizwa.');
+    return false;
+  }
+
+  for (const row of rows) {
+    const name = sanitizeText(row.name);
+
+    if (!name) {
+      notify('Jina la mwanafunzi haliwezi kuwa tupu.');
+      return false;
+    }
+
+    if (name.length < 2) {
+      notify('Jina la mwanafunzi ni fupi sana.');
+      return false;
+    }
+
+    if (
+      row.marks === '' ||
+      row.marks === null ||
+      row.marks === undefined ||
+      Number.isNaN(Number(row.marks))
+    ) {
+      notify('Marks za kila mwanafunzi zinahitajika.');
+      return false;
+    }
+
+    const mark = Number(row.marks);
+
+    if (mark < 0 || mark > 100 || !Number.isInteger(mark)) {
+      notify('Marks lazima ziwe namba kamili kati ya 0 na 100.');
+      return false;
+    }
+
+    if (
+      row.adm &&
+      !/^[A-Za-z0-9\-\/ ]{2,30}$/.test(sanitizeText(row.adm))
+    ) {
+      notify('Admission No. ina format isiyoruhusiwa.');
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/* =========================
+   REVIEW
+========================= */
 
 function reviewSubmission() {
-  let reviewContent = document.getElementById('reviewContent');
-  if (!reviewContent) return;
-  
-  let s = normalizeSubject(document.getElementById('subject')?.value);
-  let t = sanitizeText(document.getElementById('term')?.value);
-  let y = sanitizeText(document.getElementById('year')?.value);
-  let stream = sanitizeText(document.getElementById('stream')?.value).toUpperCase() || 'A';
+  if (!validateRows(currentRows)) {
+    return;
+  }
 
-  reviewContent.innerHTML = `
-    <div class="review-row"><b>Darasa:</b> <span>${currentClass} (Mkondo ${stream})</span></div>
-    <div class="review-row"><b>Somo:</b> <span>${s}</span></div>
-    <div class="review-row"><b>Kipindi:</b> <span>${t} — ${y}</span></div>
-    <div class="review-row"><b>Mwalimu:</b> <span>${currentTeacher} (${currentTeacherRole || 'Mwalimu'})</span></div>
-    <div class="review-row"><b>Wanafunzi:</b> <span>${currentRows.length} Wanafunzi</span></div>
+  const subject = normalizeSubject(document.getElementById('subject').value);
+  const term = sanitizeText(document.getElementById('term').value);
+  const year = sanitizeText(document.getElementById('year').value);
+  const stream = sanitizeText(document.getElementById('stream').value).toUpperCase() || 'A';
+
+  document.getElementById('reviewContent').innerHTML = `
+    <div class="review-row">
+      <b>Darasa</b>
+      <span>${currentClass}</span>
+    </div>
+    <div class="review-row">
+      <b>Mkondo</b>
+      <span>${stream}</span>
+    </div>
+    <div class="review-row">
+      <b>Somo</b>
+      <span>${subject}</span>
+    </div>
+    <div class="review-row">
+      <b>Term / Mwaka</b>
+      <span>${term} ${year}</span>
+    </div>
+    <div class="review-row">
+      <b>Mwalimu</b>
+      <span>${currentTeacher}</span>
+    </div>
+    <div class="review-row">
+      <b>Idadi</b>
+      <span>${currentRows.length}</span>
+    </div>
+    <div class="review-row">
+      <b>Wanafunzi</b>
+      <span>
+        ${currentRows
+          .map(
+            row =>
+              `${sanitizeText(row.name)} (${sanitizeText(row.adm) || 'No Adm'}) ${row.marks} -${grade(row.marks)}`
+          )
+          .join(', ')}
+      </span>
+    </div>
   `;
+
   showPage('review');
 }
 
-// Submit Results to Supabase
-async function submitResults() {
-  let item = {
-    class_name: currentClass,
-    subject: normalizeSubject(document.getElementById('subject')?.value),
-    term: sanitizeText(document.getElementById('term')?.value),
-    year: sanitizeText(document.getElementById('year')?.value),
-    stream: sanitizeText(document.getElementById('stream')?.value).toUpperCase() || 'A',
-    teacher_name: currentTeacher,
-    teacher_role: currentTeacherRole || 'Mwalimu',
-    teacher_bio: currentTeacherBio || '',
-    admin_name: currentAdminName || 'Admin',
-    status: 'Pending Admin',
-    rows: currentRows.map(r => ({
-      name: sanitizeText(r.name),
-      adm: sanitizeText(r.adm),
-      marks: Number(r.marks),
-      grade: grade(r.marks)
-    }))
-  };
+/* =========================
+   SUBMIT RESULTS TO BACKEND
+========================= */
 
-  if (supabase) {
-    const { data, error } = await supabase.from('results').insert([item]).select();
-    if (error) {
-      alert('Hitilafu ya kuhifadhi Supabase: ' + error.message);
+async function submitResults() {
+  if (!validateRows(currentRows)) {
+    return;
+  }
+
+  try {
+    await api('/submissions', {
+      method: 'POST',
+      body: JSON.stringify({
+        className: currentClass,
+        subject: normalizeSubject(document.getElementById('subject').value),
+        term: sanitizeText(document.getElementById('term').value),
+        year: sanitizeText(document.getElementById('year').value),
+        stream: sanitizeText(document.getElementById('stream').value).toUpperCase() || 'A',
+        rows: currentRows.map(row => ({
+          name: sanitizeText(row.name),
+          adm: sanitizeText(row.adm),
+          marks: Number(row.marks)
+        }))
+      })
+    });
+
+    currentRows = [];
+    notify('Matokeo yamesubmit kwa Admin.');
+    showPage('postSubmit');
+
+  } catch (error) {
+    notify(error);
+  }
+}
+
+/* =========================
+   RESULTS TABLE
+========================= */
+
+function rowsTableMarkup(rows = []) {
+  return `
+    <div class="results-table-wrap">
+      <table class="results-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Jina</th>
+            <th>Adm</th>
+            <th>Marks</th>
+            <th>Grade</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${
+            rows.length
+              ? rows
+                  .map(
+                    (row, index) => `
+                      <tr>
+                        <td>${index + 1}</td>
+                        <td>${row.name || '-'}</td>
+                        <td>${row.adm || '—'}</td>
+                        <td>${row.marks}</td>
+                        <td>${grade(row.marks)}</td>
+                      </tr>
+                    `
+                  )
+                  .join('')
+              : `
+                <tr>
+                  <td colspan="5">No results</td>
+                </tr>
+              `
+          }
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+/* =========================
+   HISTORY / ADMIN ITEM
+========================= */
+
+function submissionHtml(item, admin = false) {
+  const rowsMarkup = rowsTableMarkup(item.rows || []);
+
+  return `
+    <div class="history-item">
+      <div class="history-top-row">
+        <div>
+          <b>
+            ${item.className || item.class || '-'} — ${item.subject || '-'}
+          </b>
+          <div class="meta-line">
+            ${admin ? `Teacher: ${item.teacherName || item.teacher || '-'} • ` : ''}
+            Mkondo ${item.stream || 'A'} • ${item.term || '-'} • ${item.year || '-'}
+          </div>
+          <small>
+            ${item.count || (item.rows || []).length} students •
+            ${item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}
+          </small>
+        </div>
+        <div class="history-actions">
+          <span class="status">
+            ${item.status || 'Pending Admin'}
+          </span>
+          ${
+            admin
+              ? `
+                <button class="primary" onclick="approve(${item.id})">Approve</button>
+                <button class="secondary" onclick="viewSubmission(${item.id})">View</button>
+                <button class="danger" onclick="deleteSubmission(${item.id})">Delete</button>
+              `
+              : `
+                <button class="primary" onclick="resubmitSubmission(${item.id})">Resubmit</button>
+              `
+          }
+        </div>
+      </div>
+      ${rowsMarkup}
+    </div>
+  `;
+}
+
+/* =========================
+   TEACHER HISTORY
+========================= */
+
+async function loadHistory() {
+  try {
+    history = await api('/submissions');
+
+    const historyList = document.getElementById('historyList');
+
+    if (!historyList) {
       return;
     }
-    if (data && data.length) item.id = data[0].id;
-  } else {
-    item.id = Date.now();
-  }
 
-  submissions.unshift(item);
-  history.unshift(item);
-  alert('Matokeo yamefanikiwa kutumwa kwa Admin!');
-  currentRows = [];
-  showPage('postSubmit');
-}
-
-function renderHistory() {
-  let list = document.getElementById('historyList');
-  if (!list) return;
-
-  list.innerHTML = history.length ? history.map(x => `
-    <div class="history-item">
-      <div>
-        <b>${x.class_name || x.class} — ${x.subject}</b>
-        <div>Mwalimu: ${x.teacher_name || x.teacher} | ${x.term} ${x.year} (Mkondo ${x.stream || 'A'})</div>
-      </div>
-      <span class="status">${x.status}</span>
-    </div>
-  `).join('') : '<div class="card">Hakuna historia ya matokeo kwa sasa.</div>';
-}
-
-function renderAdmin() {
-  let pendingEl = document.getElementById('pendingCount');
-  let adminList = document.getElementById('adminList');
-
-  if (pendingEl) pendingEl.textContent = submissions.filter(x => x.status === 'Pending Admin').length;
-
-  if (adminList) {
-    adminList.innerHTML = submissions.length ? submissions.map(x => `
-      <div class="history-item">
-        <div>
-          <b>${x.class_name || x.class} — ${x.subject}</b>
-          <div>Mwalimu: ${x.teacher_name || x.teacher} (${x.term} ${x.year})</div>
+    historyList.innerHTML = history.length
+      ? history.map(item => submissionHtml(item)).join('')
+      : `
+        <div class="card">
+          Hakuna history bado.
         </div>
-        <div>
-          <span class="status">${x.status}</span>
-          <button class="primary" style="margin-left:8px" onclick="approve('${x.id}')">Approve</button>
-          <button class="secondary" style="margin-left:8px" onclick="viewSubmission('${x.id}')">View</button>
+      `;
+
+  } catch (error) {
+    notify(error);
+  }
+}
+
+/* =========================
+   ADMIN DASHBOARD
+========================= */
+
+async function loadAdmin() {
+  if (!requireRole('admin')) {
+    return;
+  }
+
+  try {
+    submissions = await api('/submissions');
+
+    const pending = submissions.filter(item => item.status === 'Pending Admin').length;
+    const pendingCount = document.getElementById('pendingCount');
+
+    if (pendingCount) {
+      pendingCount.textContent = pending;
+    }
+
+    const adminList = document.getElementById('adminList');
+
+    if (!adminList) {
+      return;
+    }
+
+    adminList.innerHTML = submissions.length
+      ? submissions.map(item => submissionHtml(item, true)).join('')
+      : `
+        <div class="card">
+          Hakuna submissions bado.
         </div>
-      </div>
-    `).join('') : '<div class="card">Hakuna matokeo yaliyotumwa bado.</div>';
+      `;
+
+  } catch (error) {
+    notify(error);
   }
 }
 
-function viewSubmission(id) {
-  let item = submissions.find(x => x.id == id);
-  if (!item) return;
-
-  let rowDetail = (item.rows || []).map(r => `${r.name} (${r.adm || 'No Adm'}) : <b>${r.marks}</b> (${r.grade})`).join('<br>');
-
-  let detailContent = document.getElementById('adminDetailContent');
-  let detailCard = document.getElementById('adminDetail');
-
-  if (detailContent) {
-    detailContent.innerHTML = `
-      <div class="review-row"><b>Mwalimu:</b> <span>${item.teacher_name || item.teacher} (${item.teacher_role || '—'})</span></div>
-      <div class="review-row"><b>Bio / CV ya Mwalimu:</b> <span>${item.teacher_bio || '—'}</span></div>
-      <div class="review-row"><b>Darasa & Somo:</b> <span>${item.class_name || item.class} — ${item.subject} (${item.term} ${item.year})</span></div>
-      <hr>
-      <div class="review-row"><b>Matokeo ya Wanafunzi:</b><br><span>${rowDetail}</span></div>
-    `;
-  }
-  if (detailCard) detailCard.classList.remove('hidden');
-}
+/* =========================
+   APPROVE
+========================= */
 
 async function approve(id) {
-  if (supabase) {
-    await supabase.from('results').update({ status: 'Approved' }).eq('id', id);
-  }
-  submissions = submissions.map(x => x.id == id ? { ...x, status: 'Approved' } : x);
-  history = history.map(x => x.id == id ? { ...x, status: 'Approved' } : x);
-  renderAdmin();
-  renderHistory();
-}
+  try {
+    await api(`/submissions/${id}/approve`, {
+      method: 'POST'
+    });
 
-async function loadFromSupabase() {
-  if (!supabase) return;
-  const { data, error } = await supabase.from('results').select('*').order('id', { ascending: false });
-  if (error) { console.error(error); return; }
-  if (data) {
-    submissions = data;
-    history = data;
+    await loadAdmin();
+
+  } catch (error) {
+    notify(error);
   }
 }
 
-async function init() {
-  await loadFromSupabase();
-  showPage('landing');
+/* =========================
+   DELETE
+========================= */
+
+async function deleteSubmission(id) {
+  try {
+    if (!confirm('Unataka kufuta matokeo haya?')) {
+      return;
+    }
+
+    await api(`/submissions/${id}`, {
+      method: 'DELETE'
+    });
+
+    await loadAdmin();
+    await loadHistory();
+
+  } catch (error) {
+    notify(error);
+  }
 }
 
-init();
+/* =========================
+   RESUBMIT
+========================= */
+
+function resubmitSubmission(id) {
+  const item = history.find(value => value.id === id);
+
+  if (!item) {
+    return;
+  }
+
+  currentClass = item.className || item.class || '';
+  currentRows = (item.rows || []).map(r => ({
+    name: r.name || '',
+    adm: r.adm || '',
+    marks: r.marks !== undefined ? r.marks : ''
+  }));
+
+  document.getElementById('subject').value = item.subject || '';
+  document.getElementById('term').value = item.term || '';
+  document.getElementById('year').value = item.year || '';
+  document.getElementById('stream').value = item.stream || 'A';
+
+  showPage('classInfo');
+}
